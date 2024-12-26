@@ -7,12 +7,14 @@ pipeline {
 
     environment {
         DISPLAY = ":99"
-	ARTIFACTORY_SERVER = 'artifactory'
+        ARTIFACTORY_SERVER = 'artifactory'
         ARTIFACTORY_REPO = 'calc_local_repo'
+        SONARQUBE_URL = 'http://sonarqube.url'
+        SONARQUBE_TOKEN = credentials('sonar-token')  // Use Jenkins credentials for secure handling
     }
 
     stages {
-	stage('Install Dependencies') {
+        stage('Install Dependencies') {
             steps {
                 script {
                     sh '''
@@ -23,34 +25,33 @@ pipeline {
             }
         }
 
-	stage('Set Up Xvfb') {
+        stage('Set Up Xvfb') {
             steps {
                 script {
                     sh 'Xvfb :99 -screen 0 1024x768x24 &'
                 }
             }
         }
-	
-	stage('Build with Maven') {
+
+        stage('Build with Maven') {
             steps {
                 script {
                     sh 'mvn clean package'
                 }
             }
         }
-	
-        stage('SonarQube analysis') {
+
+        stage('SonarQube Analysis') {
             steps {
                 script {
-
-                withSonarQubeEnv('sonarqubeserver') {
-                    sh "mvn verify"
-                        }
+                    withSonarQubeEnv('sonarqubeserver') {
+                        sh "mvn verify"
+                    }
                 }
             }
-     	}
+        }
 
-	stage('Deploy to Artifactory') {
+        stage('Deploy to Artifactory') {
             steps {
                 script {
                     def server = Artifactory.server(ARTIFACTORY_SERVER)
@@ -63,14 +64,13 @@ pipeline {
                             }
                         ]
                     }"""
-                   
                     server.upload spec: uploadSpec
                 }
             }
         }
     }
 
-   post {
+    post {
         success {
             emailext (
                 subject: "Job '${JOB_NAME}' (${BUILD_NUMBER}) succeeded",
@@ -85,6 +85,5 @@ pipeline {
                 to: 'sharon088@gmail.com'
             )
         }
-    }    
-
+    }
 }
